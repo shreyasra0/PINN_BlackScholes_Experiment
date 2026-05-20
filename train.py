@@ -1,6 +1,7 @@
 import numpy as np
 import jax
 import jax.numpy as jnp
+import pickle
 from neural_net.model import SequentialPINN, jax_forward
 from neural_net.losses import compute_pinn_loss
 
@@ -8,7 +9,7 @@ def train_and_validate():
     X_raw = np.load('data/bs_X_processed.npy')
     y_raw = np.load('data/bs_y_processed.npy')
     unique = np.unique(np.hstack([X_raw, y_raw.reshape(-1, 1)]), axis=0)
-    subset_size = 20000 
+    subset_size = 50000 
     indices = np.random.choice(unique.shape[0], subset_size, replace=False)
     X_data, y_data = unique[indices, :3], unique[indices, 3]
     scales = np.max(np.abs(X_data), axis=0)
@@ -35,6 +36,10 @@ def train_and_validate():
     preds = jax_forward(params, X_full)
     mse = jnp.mean((preds.flatten() - y_full)**2)
     print(f"Final Validation MSE: {mse:.6f}")
+
+    with open('model_weights.pkl', 'wb') as f:
+        pickle.dump(params, f)
+        print("Weights saved to model_weights.pkl")
 
 if __name__ == "__main__":
     train_and_validate()
