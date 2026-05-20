@@ -1,0 +1,4 @@
+numpy>=1.22.0
+pandas>=1.4.0
+jax>=0.4.0
+jaxlib>=0.4.0
