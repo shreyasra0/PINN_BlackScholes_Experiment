@@ -1,4 +1,3 @@
-# physics/engine.py
 import jax
 import jax.numpy as jnp
 

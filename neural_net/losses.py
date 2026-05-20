@@ -1,8 +1,7 @@
-# neural_net/losses.py
 import jax.numpy as jnp
-from physics.engine import black_scholes_pde_operator
+from pde_solver.physics_engine import black_scholes_pde_operator
 
-def compute_pinn_loss(forward_fn, params, X_batch, y_batch, sigma, lambda_physics=0.01, lambda_boundary=1.0, r=0.0):
+def compute_pinn_loss(forward_fn, params, X_batch, y_batch, sigma, lambda_physics=2.8104, lambda_boundary=1.3695, r=0.0):
     V_pred = forward_fn(params, X_batch)
     data_loss = jnp.mean((V_pred - y_batch) ** 2)
     
@@ -13,7 +12,7 @@ def compute_pinn_loss(forward_fn, params, X_batch, y_batch, sigma, lambda_physic
     pde_residual = black_scholes_pde_operator(forward_fn, params, S, t, K, sigma, r)
     physics_loss = jnp.mean(pde_residual ** 2)
     
-    X_exp = jnp.stack([S, jnp.zeros_like(t), K], axis=1)
+    X_exp = jnp.stack([S, jnp.zeros_like(t) + 1e-5, K], axis=1)
     V_exp_pred = forward_fn(params, X_exp).squeeze()
     V_exp_true = jnp.maximum(S - K, 0.0)
     loss_expiration = jnp.mean((V_exp_pred - V_exp_true) ** 2)
