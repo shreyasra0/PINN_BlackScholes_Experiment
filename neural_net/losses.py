@@ -10,6 +10,9 @@ def compute_pinn_loss(forward_fn, params, X_batch, y_batch, sigma, lambda_physic
     K = X_batch[:, 2]
     
     pde_residual = black_scholes_pde_operator(forward_fn, params, S, t, K, sigma, r)
+    
+    # Clamp the PDE residual to prevent explosion
+    pde_residual = jnp.clip(pde_residual, -1e3, 1e3)
     physics_loss = jnp.mean(pde_residual ** 2)
     
     X_exp = jnp.stack([S, jnp.zeros_like(t) + 1e-5, K], axis=1)
@@ -22,4 +25,6 @@ def compute_pinn_loss(forward_fn, params, X_batch, y_batch, sigma, lambda_physic
     loss_floor = jnp.mean(V_floor_pred ** 2)
     
     total_loss = data_loss + (lambda_physics * physics_loss) + (lambda_boundary * (loss_expiration + loss_floor))
-    return total_loss
+    
+    # Final safety catch: if any NaN leaks through, return a large finite number
+    return jnp.where(jnp.isnan(total_loss), 1e6, total_loss)

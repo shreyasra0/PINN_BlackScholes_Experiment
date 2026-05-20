@@ -2,21 +2,30 @@ import jax
 import jax.numpy as jnp
 
 def black_scholes_pde_operator(forward_fn, params, S, t, K, sigma, r=0.0):
-    def price_scalar(S_val, t_val, K_val):
-        x = jnp.array([[S_val, t_val, K_val]])
-        return forward_fn(params, x)[0, 0]
+    def batch_forward(S_arr, t_arr, K_arr):
+        S_arr = jnp.atleast_1d(S_arr)
+        t_arr = jnp.atleast_1d(t_arr)
+        K_arr = jnp.atleast_1d(K_arr)
+        X = jnp.stack([S_arr, t_arr, K_arr], axis=1)
+        return forward_fn(params, X).flatten()
 
-    df_dS = jax.grad(price_scalar, argnums=0)
-    d2f_dS2 = jax.grad(df_dS, argnums=0)
-    df_dt = jax.grad(price_scalar, argnums=1)
-
-    delta_vec = jax.vmap(df_dS)(S, t, K)
-    gamma_vec = jax.vmap(d2f_dS2)(S, t, K)
-    theta_vec = jax.vmap(df_dt)(S, t, K)
+    grad_fn = jax.jacfwd(batch_forward, argnums=(0, 1))
+    delta_vec, theta_vec = grad_fn(S, t, K)
     
-    X_batch = jnp.stack([S, t, K], axis=1)
-    V = forward_fn(params, X_batch)
+    def scalar_forward(s, tt, kk):
+        # Ensure input is 1D for the forward function
+        s, tt, kk = jnp.atleast_1d(s), jnp.atleast_1d(tt), jnp.atleast_1d(kk)
+        return batch_forward(s, tt, kk)[0]
 
-    pde_residual = theta_vec + 0.5 * (sigma**2) * (S**2) * gamma_vec + r * S * delta_vec - r * V.squeeze()
+    gamma_vec = jax.vmap(
+        jax.grad(
+            jax.grad(scalar_forward, argnums=0),
+            argnums=0
+        )
+    )(S, t, K)
+
+    V = batch_forward(S, t, K)
+    
+    pde_residual = theta_vec + 0.5 * (sigma**2) * (S**2) * gamma_vec + r * S * delta_vec - r * V
     
     return pde_residual

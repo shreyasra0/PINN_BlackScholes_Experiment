@@ -1,17 +1,17 @@
-# neural_net/model.py
+import jax
 import jax.numpy as jnp
 from neural_net.layers import DenseLayer, SwishActivation
 
 class SequentialPINN:
     def __init__(self):
         self.layers = [
-            DenseLayer(3, 16),
+            DenseLayer(3, 32),
             SwishActivation(),
-            DenseLayer(16, 16),
+            DenseLayer(32, 32),
             SwishActivation(),
-            DenseLayer(16, 16),
+            DenseLayer(32, 32),
             SwishActivation(),
-            DenseLayer(16, 1)
+            DenseLayer(32, 1)
         ]
 
     def forward(self, x):
@@ -44,10 +44,13 @@ class SequentialPINN:
                 idx += 1
 
 def jax_forward(params, x):
+    def swish(z):
+        return z * jax.nn.sigmoid(z)
+    
     out = x
     num_layers = len(params)
     for i, layer in enumerate(params):
         out = jnp.dot(out, layer['W']) + layer['b']
         if i < num_layers - 1:
-            out = out / (1.0 + jnp.exp(-out))
+            out = swish(out)
     return out
